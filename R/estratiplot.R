@@ -4,6 +4,7 @@ library(tidyverse)
 library(ggplot2)
 library(patchwork)
 library(tidypaleo)
+theme_set(theme_bw(8))
 
 y1 <- read_csv(here::here("analysis/data/raw_data/2021-08-31_informeMF2021_data_V01.csv"))
 head(y1)
@@ -77,5 +78,43 @@ wrap_plots(
 
 png_out <- here::here("analysis/figures","Fig2.png")
 ggsave(png_out,  width = 25,height = 12, units = 'cm',device = "png")
+
+
+y2 <- read_csv(here::here("analysis/data/raw_data/2021-08-31_informeMF2021_polen_V01.csv"))
+head(y2)
+
+data.porcen <- (y2[,10:136]/(rowSums(y2[,10:136])))*100 # Calculate %
+data.sum <- colSums(data.porcen) # Calculate column sums
+data.pollen <- data.porcen[, which(data.sum > 10)] # Subset data 10%
+
+data1 <- cbind(y2[,5],data.pollen)
+
+## reordenamos los datos en un formato de tabla larga
+y2data<- pivot_longer(data1,cols =Adiantum:Apiaceae_tipo_Bowlesia, names_to = "species", values_to = "rel_abund")
+
+y2_plot <- ggplot(y2data, aes(x = rel_abund, y = median)) +
+  geom_col_segsh() +
+  geom_lineh_exaggerate(exaggerate_x = 5, col = "grey70", lty = 2) +
+  geom_point() +
+  scale_y_reverse() +
+  facet_abundanceh(vars(species)) +
+  labs(x = "Abundence %", y = "Age")
+
+keji_coniss <- y2data %>%
+  nested_data(qualifiers = median, key = species, value = rel_abund, trans = scale) %>%
+  nested_chclust_coniss()
+
+
+library(patchwork)
+wrap_plots(
+  y2_plot +
+    theme(strip.background = element_blank(), strip.text.y = element_blank()),
+  ggplot() +
+    layer_dendrogram(keji_coniss, aes(y = median)) +
+    theme(axis.text.y.left = element_blank(), axis.ticks.y.left = element_blank())+
+    labs(y = NULL),
+  nrow = 1,
+  widths = c(8, 0.8)
+)
 
 
